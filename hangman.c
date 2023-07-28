@@ -138,6 +138,14 @@ char get_input() {
   return ch;
 }
 
+void print_info(Game *game) {
+  clear_console();
+  printf("%s \t Score: %u \t Your guesses: \n", game->display_word, game->score);
+  for(int i = 0; i < game->guesses_made; ++i)
+    printf("%c ", game->guesses[i]);
+  printf("\n\n");
+}
+
 int main() {
   srand(time(0));
   FILE *file = fopen("words.txt", "r");
@@ -154,13 +162,12 @@ int main() {
   GameState state = GAME_RUNNING;
 
   while(state == GAME_RUNNING) {
-    clear_console();
-    printf("%s \t Score: %u\n", game.display_word, game.score);
+    print_info(&game);
     char in = get_input();
     state = game_update(&game, in);
   }
 
-  clear_console();
+  print_info(&game);
   if(state == GAME_OVER) printf("You lost. The word was %s\n", game.current_word);
   else printf("You won!! Score: %u\n", game.score);
 
