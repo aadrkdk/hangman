@@ -76,7 +76,7 @@ void read_random_word(FILE *f, char **dst) {
     ch = fgetc(f);
     if(ch == ',') count++;
   }
-  ch = fgetc(f);
+  if(index != 0) ch = fgetc(f);
 
   size_t word_len = 1;
   while ((ch = fgetc(f)) != ',') word_len++;
@@ -93,7 +93,7 @@ Game game_init(FILE *word_file) {
   game.word_file = word_file;
   read_random_word(game.word_file, &game.current_word);
   game.word_len = strlen(game.current_word);
-  game.display_word = (char*)malloc(game.word_len);
+  game.display_word = (char*)calloc(game.word_len, sizeof(char));
   for(int i = 0; i < game.word_len; ++i)
     game.display_word[i] = '_';
 
