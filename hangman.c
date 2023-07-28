@@ -5,8 +5,13 @@
 #include <string.h>
 #include <time.h>
 
-#define MAX_SCORE 5 // total wrong guesses allowed
+#define MAX_SCORE 7       // total wrong guesses allowed
 #define WORD_COUNT 1022
+
+const int hanger_x = 0;
+const int hanger_y = 3;
+const int parts_off[][2] = {{10, 3}, {10, 4}, {9, 4}, {11, 4}, {10, 5}, {9, 6}, {11, 6}};
+const char *parts_shape = "O|/\\|/\\";
 
 typedef struct {
   char *current_word;
@@ -14,7 +19,7 @@ typedef struct {
   size_t word_len;
   unsigned int score;
 
-  char *guesses;       // past guesses
+  char *guesses;          // past guesses
   unsigned int guesses_made;
   FILE *word_file;
 } Game;
@@ -65,6 +70,7 @@ void read_random_word(FILE *f, char **dst) {
   unsigned int index = (unsigned int)(((float)rand()) * (WORD_COUNT) / RAND_MAX);
   unsigned int count = 0;
 
+  fseek(f, 0, SEEK_SET);
   char ch;
   while (count < index) {
     ch = fgetc(f);
@@ -99,10 +105,7 @@ Game game_init(FILE *word_file) {
 }
 
 GameState game_update(Game *game, char in) {
-  if(str_contains(game->guesses, in)) {
-    printf("You have already guessed this.\n");
-    return GAME_RUNNING;
-  }
+  if(str_contains(game->guesses, in)) return GAME_RUNNING;
   game->guesses[game->guesses_made++] = in;
   
   int match = 0;
@@ -123,6 +126,12 @@ GameState game_update(Game *game, char in) {
   return GAME_RUNNING;
 }
 
+void game_destroy(Game *game) {
+  free(game->current_word);
+  free(game->display_word);
+  free(game->guesses);
+}
+
 char get_input() {
   char ch = 0;
   printf("Enter your guess: ");
@@ -138,13 +147,32 @@ char get_input() {
   return ch;
 }
 
-void print_info(Game *game) {
+void draw(Game *game) {
   clear_console();
-  printf("%s \t Score: %u \t Your guesses: \n", game->display_word, game->score);
+  printf("%s \t Score: %u \t Your guesses: ", game->display_word, game->score);
   for(int i = 0; i < game->guesses_made; ++i)
     printf("%c ", game->guesses[i]);
-  printf("\n\n");
-}
+  printf("\033[%d;%dH", hanger_y, hanger_x);
+  printf("---------+---------\n"
+	 "||       |\n"
+	 "||       |\n"
+	 "||\n"
+	 "||\n"
+	 "||\n"
+	 "||\n"
+	 "||\n"
+	 "||\n"
+	 "||\n"
+	 "||\n"
+	 "||_________________\n\n\n\n");
+
+  int parts_to_draw = MAX_SCORE - game->score;
+  for (int i = 0; i < parts_to_draw; ++i) {
+    printf("\033[%d;%dH", hanger_y + parts_off[i][1], hanger_x + parts_off[i][0]);
+    printf("%c", parts_shape[i]);
+  }
+  printf("\033[%d;%dH", hanger_y + 15, 0);
+}	 
 
 int main() {
   srand(time(0));
@@ -154,22 +182,26 @@ int main() {
     return 1;
   }
 
-  char *word = 0;
-  read_random_word(file, &word);
-  printf("%s\n", word);
+  char choice;
+  do {
+    Game game = game_init(file);
+    GameState state = GAME_RUNNING;
+    
+    while(state == GAME_RUNNING) {
+      draw(&game);
+      char in = get_input();
+      state = game_update(&game, in);
+    }
 
-  Game game = game_init(file);
-  GameState state = GAME_RUNNING;
+    draw(&game);
+    if(state == GAME_OVER) printf("You lost. The word was %s\n", game.current_word);
+    else printf("You won!! Score: %u\n", game.score);
 
-  while(state == GAME_RUNNING) {
-    print_info(&game);
-    char in = get_input();
-    state = game_update(&game, in);
-  }
-
-  print_info(&game);
-  if(state == GAME_OVER) printf("You lost. The word was %s\n", game.current_word);
-  else printf("You won!! Score: %u\n", game.score);
+    printf("Play again (y or n)? ");
+    scanf("%c", &choice);
+    clear_stdin();
+    game_destroy(&game);
+  } while(char_lower(choice) == 'y');
 
   return 0;
 }
